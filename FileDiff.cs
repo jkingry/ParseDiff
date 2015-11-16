@@ -1,121 +1,91 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text;
-using System.Text.RegularExpressions;
-using System.Threading.Tasks;
-
-namespace ParseDiff
+﻿namespace ParseDiff
 {
-    public class LineChange
-    {
-        internal bool add;
-        internal string content;
-        internal bool del;
-        internal int @in;
-        internal int in1;
-        internal int in2;
-        internal bool normal;
-        internal string type;
-    }
+    using System;
+    using System.Collections.Generic;
+    using System.Linq;
+    using System.Text.RegularExpressions;
 
-    public class Chunk
+    public class FileDiff
     {
-        public string content;
-        public List<LineChange> changes = new List<LineChange>();
-        public int oldStart, oldLines, newStart, newLines;
-    }
+        public ICollection<DiffChunk> Chunks { get; } = new List<DiffChunk>();
 
-    public class DiffResult
-    {
-        public List<Chunk> chunks = new List<Chunk>();
-        public int deletions = 0;
-        public int additions = 0;
-        public string to;
-        public string from;
-        internal bool @new;
-        internal bool deleted;
-        internal IEnumerable<string> index;
-    }
+        public int Deletions { get; internal set; }
+        public int Additions { get; internal set; }
 
-    delegate void ParserAction(string line, Match m);
+        public string To { get; internal set; }
 
-    class Program
-    {
-        static void Main(string[] args)
+        public string From { get; internal set; }
+
+        public FileChangeType Type { get; internal set; }
+
+        public IEnumerable<string> Index { get; internal set; }
+
+        private delegate void ParserAction(string line, Match m);
+
+        public static IEnumerable<FileDiff> Parse(string input, string lineEnding = "\n")
         {
-            var text = File.ReadAllText(@"c:\r\shoplogix\diff.txt");
-            foreach(var p in Parse(text))
-            {
-                Console.WriteLine(p.from);
-            }
-        }
+            if (string.IsNullOrWhiteSpace(input)) return Enumerable.Empty<FileDiff>();
 
-        public static IEnumerable<DiffResult> Parse(string input)
-        {
-            if (string.IsNullOrWhiteSpace(input)) return Enumerable.Empty<DiffResult>();
+            var lines = input.Split(new[] { lineEnding }, StringSplitOptions.None);
 
-            var lines = input.Split('\n');
+            if (lines.Length == 0) return Enumerable.Empty<FileDiff>();
 
-            if (lines.Length == 0) return Enumerable.Empty<DiffResult>();
-
-            var files = new List<DiffResult>();
+            var files = new List<FileDiff>();
             var in_del = 0;
             var in_add = 0;
 
-            Chunk current = null;
-            DiffResult file = null;
+            DiffChunk current = null;
+            FileDiff file = null;
 
             int oldStart, newStart;
             int oldLines, newLines;
 
             ParserAction start = (line, m) => {
-                file = new DiffResult();
+                file = new FileDiff();
                 files.Add(file);
 
-                if (file.to == null && file.from == null)
+                if (file.To == null && file.From == null)
                 {
                     var fileNames = parseFile(line);
 
                     if (fileNames != null)
                     {
-                        file.from = fileNames[0];
-                        file.to = fileNames[1];
+                        file.From = fileNames[0];
+                        file.To = fileNames[1];
                     }
                 }
             };
 
             ParserAction restart = (line, m) => {
-                if (file == null || file.chunks.Count != 0)
+                if (file == null || file.Chunks.Count != 0)
                     start(null, null);
             };
 
             ParserAction new_file = (line, m) => {
                 restart(null, null);
-                file.@new = true;
-                file.from = "/dev/null";
+                file.Type = FileChangeType.Add;
+                file.From = "/dev/null";
             };
 
             ParserAction deleted_file = (line, m) => {
                 restart(null, null);
-                file.deleted = true;
-                file.to = "/dev/null";
+                file.Type = FileChangeType.Delete;
+                file.To = "/dev/null";
             };
 
             ParserAction index = (line, m) => {
                 restart(null, null);
-                file.index = line.Split(' ').Skip(1);
+                file.Index = line.Split(' ').Skip(1);
             };
 
             ParserAction from_file = (line, m) => {
                 restart(null, null);
-                file.from = parseFileFallback(line);
+                file.From = parseFileFallback(line);
             };
 
             ParserAction to_file = (line, m) => {
                 restart(null, null);
-                file.to = parseFileFallback(line);
+                file.To = parseFileFallback(line);
             };
 
             ParserAction chunk = (line, match) => {
@@ -123,24 +93,24 @@ namespace ParseDiff
                 oldLines = match.Groups[2].Success ? int.Parse(match.Groups[2].Value) : 0;
                 in_add = newStart = int.Parse(match.Groups[3].Value);
                 newLines = match.Groups[4].Success ? int.Parse(match.Groups[4].Value) : 0;
-                current = new Chunk {
-                    content = line,
-                    oldStart = oldStart,
-                    oldLines = oldLines,
-                    newStart = newStart,
-                    newLines = newLines
-                };
-                file.chunks.Add(current);
+                current = new DiffChunk(
+                    content: line,
+                    oldStart: oldStart,
+                    oldLines: oldLines,
+                    newStart: newStart,
+                    newLines: newLines
+                );
+                file.Chunks.Add(current);
             };
 
             ParserAction del = (line, match) => {
-                current.changes.Add(new LineChange { type = "del", del = true, @in = in_del++, content = line });
-                file.deletions++;
+                current.Changes.Add(new LineDiff(type: LineChangeType.Delete, index: in_del++, content: line));
+                file.Deletions++;
             };
 
             ParserAction add = (line, m) => {
-                current.changes.Add(new LineChange { type = "add", add = true, @in = in_add++, content = line });
-                file.additions++;
+                current.Changes.Add(new LineDiff(type: LineChangeType.Add, index: in_add++, content: line));
+                file.Additions++;
             };
 
             const string noeol = "\\ No newline at end of file";
@@ -148,13 +118,10 @@ namespace ParseDiff
             Action<string> normal = line => {
                 if (file == null) return;
 
-                current.changes.Add(new LineChange {
-                    type = "normal",
-                    normal = true,
-                    in1 = line == noeol ? 0 : in_del++,
-                    in2 = line == noeol ? 0 : in_add++,
-                    content = line
-                });
+                current.Changes.Add(new LineDiff(
+                    oldIndex: line == noeol ? 0 : in_del++,
+                    newIndex: line == noeol ? 0 : in_add++,
+                    content: line));
             };
 
             var schema = new Dictionary<Regex, ParserAction>
