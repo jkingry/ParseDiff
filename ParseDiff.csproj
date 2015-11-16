@@ -46,10 +46,12 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Diff.cs" />
+    <Compile Include="DiffParser.cs" />
     <Compile Include="LineChangeType.cs" />
     <Compile Include="FileChangeType.cs" />
     <Compile Include="LineDiff.cs" />
-    <Compile Include="DiffChunk.cs" />
+    <Compile Include="ChunkDiff.cs" />
     <Compile Include="FileDiff.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
