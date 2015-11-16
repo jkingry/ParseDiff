@@ -48,7 +48,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
-    <None Include="CoffeeScript1.coffee" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="example.js" />
