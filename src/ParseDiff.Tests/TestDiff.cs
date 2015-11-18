@@ -7,7 +7,7 @@
     using static Microsoft.VisualStudio.TestTools.UnitTesting.Assert;
 
     [TestClass]
-    public class DiffParserTest
+    public class TestDiff
     {
         [TestMethod]
         public void ShouldParseNull() =>
