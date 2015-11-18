@@ -27,7 +27,7 @@
         public DiffParser()
         {
             schema = new HandlerCollection
-                    {
+            {
                     { @"^diff\s", Start },
                     { @"^new file mode \d+$", NewFile },
                     { @"^deleted file mode \d+$", DeletedFile },
@@ -136,6 +136,8 @@
         private void ParseNormalLine(string line)
         {
             if (file == null) return;
+
+            if (string.IsNullOrEmpty(line)) return;
 
             current.Changes.Add(new LineDiff(
                 oldIndex: line == noeol ? 0 : in_del++,

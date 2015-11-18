@@ -18,6 +18,10 @@
 
         public FileChangeType Type { get; internal set; }
 
+        public bool Deleted => Type == FileChangeType.Delete;
+
+        public bool Add => Type == FileChangeType.Add;
+
         public IEnumerable<string> Index { get; internal set; }
 
         private delegate void ParserAction(string line, Match m);
