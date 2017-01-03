@@ -5,7 +5,7 @@
     using System.Linq;
     using System.Text.RegularExpressions;
 
-    public class FileDiff
+    public class FileDiff : IEquatable<FileDiff>
     {
         public ICollection<ChunkDiff> Chunks { get; } = new List<ChunkDiff>();
 
@@ -187,6 +187,47 @@
 	        return Regex.IsMatch(s, @"^(a|b)\/") 
                 ? s.Substring(2) 
                 : s;
+        }
+
+        public bool Equals(FileDiff other)
+        {
+            return
+                Equals(Deletions, other.Deletions) &&
+                Equals(Additions, other.Additions) &&
+                Equals(To, other.To) &&
+                Equals(From, other.From) &&
+                Equals(Type, other.Type) &&
+                IndexEquals(other.Index) &&
+                Enumerable.SequenceEqual(Chunks, other.Chunks);
+        }
+
+        private bool IndexEquals(IEnumerable<string> otherIndex)
+        {
+            return 
+                Index == null 
+                ? otherIndex == null                 
+                : (otherIndex != null && Enumerable.SequenceEqual(Index, otherIndex));
+        }
+
+        public override bool Equals(object obj)
+        {
+            return Equals(obj as FileDiff);
+        }
+
+        public override int GetHashCode()
+        {
+            unchecked // Overflow is fine, just wrap
+            {
+                int hash = 17;
+                hash = hash * 23 + Deletions;
+                hash = hash * 23 + Additions;
+                hash = hash * 23 + To?.GetHashCode() ?? 0;
+                hash = hash * 23 + From?.GetHashCode() ?? 0;
+                hash = hash * 23 + Type.GetHashCode();
+                hash = hash * 23 + Index?.GetHashCode() ?? 0;
+                hash = hash * 23 + Chunks.GetHashCode();
+                return hash;
+            }
         }
     }
 }
