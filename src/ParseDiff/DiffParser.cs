@@ -137,6 +137,8 @@
         {
             if (file == null) return;
 
+            if (current == null) return;
+
             if (string.IsNullOrEmpty(line)) return;
 
             current.Changes.Add(new LineDiff(

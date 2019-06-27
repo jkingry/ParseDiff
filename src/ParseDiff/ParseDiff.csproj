@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
         <TargetFramework>netstandard2.0</TargetFramework>
-        <Version>2.0.1</Version>
+        <Version>2.0.2</Version>
         <Company>Joseph Kingry</Company>
         <Authors>Joseph Kingry</Authors>
         <Description>Unified Diff Parser in C#</Description>
